@@ -15,19 +15,30 @@ app.get('/proxy', async (req, res) => {
     }
 
     try {
-        // Native global fetch built into Node.js
         const response = await fetch(targetUrl, {
             headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
             }
         });
 
-        const contentType = response.headers.get('content-type');
-        if (contentType) {
-            res.setHeader('Content-Type', contentType);
+        const contentType = response.headers.get('content-type') || '';
+        res.setHeader('Content-Type', contentType);
+
+        let body = await response.text();
+
+        if (contentType.includes('text/html')) {
+            const parsedUrl = new URL(targetUrl);
+            const baseTag = `<base href="${parsedUrl.origin}/">`;
+            
+            if (body.includes('<head>')) {
+                body = body.replace('<head>', `<head>\n${baseTag}`);
+            } else if (body.includes('<HEAD>')) {
+                body = body.replace('<HEAD>', `<HEAD>\n${baseTag}`);
+            } else {
+                body = baseTag + body;
+            }
         }
 
-        const body = await response.text();
         res.send(body);
     } catch (err) {
         res.status(500).send(`Proxy error: ${err.message}`);
